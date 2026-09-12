@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Escalação — Explorador de Times</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="hero">
+    <p class="hero__kicker">explorador de times</p>
+    <h1 class="hero__title">ESCALAÇÃO</h1>
+    <p class="hero__subtitle">Digite o nome de um time de qualquer esporte do mundo e veja o escudo, o estádio e a história dele em segundos.</p>
+
+    <form class="search" id="form-busca">
+      <input
+        type="text"
+        id="campo-busca"
+        class="search__input"
+        placeholder="Flamengo, Real Madrid, Lakers..."
+        autocomplete="off"
+      >
+      <button type="submit" id="botao-buscar" class="search__button">Buscar</button>
+    </form>
+
+    <div class="chips">
+      <button type="button" class="chip" data-time="Flamengo">Flamengo</button>
+      <button type="button" class="chip" data-time="Real Madrid">Real Madrid</button>
+      <button type="button" class="chip" data-time="Los Angeles Lakers">Lakers</button>
+      <button type="button" class="chip" data-time="Manchester United">Man United</button>
+      <button type="button" class="chip" data-time="Corinthians">Corinthians</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="resultado" class="resultado" aria-live="polite">
+      <p class="estado-inicial">Nenhum time buscado ainda. Escolha um dos times acima ou digite o seu.</p>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <p>Dados fornecidos por <a href="https://www.thesportsdb.com/" target="_blank" rel="noopener">TheSportsDB</a> · Projeto acadêmico de bootcamp</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
