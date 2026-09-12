@@ -202,6 +202,19 @@
     outline-offset: 2px;
   }
   
+  .filtro-times {
+    margin-bottom: 20px;
+  }
+  
+  .filtro-times[hidden] {
+    display: none;
+  }
+  
+  .filtro-times .select {
+    width: 100%;
+    max-width: 320px;
+  }
+  
   .resultado {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -226,9 +239,21 @@
     color: #ffb3b3;
   }
   
+  .estado-vazio .botao-buscar-time-liga {
+    margin-top: 16px;
+  }
+  
   .estado-carregando {
     color: var(--accent);
     font-family: var(--font-mono);
+  }
+  
+  .aviso-limite {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--accent);
+    font-size: 0.85rem;
+    margin: 0 0 4px;
   }
   
   /* ---------- Team card ---------- */

@@ -21,18 +21,17 @@
         type="text"
         id="campo-busca"
         class="search__input"
-        placeholder="Nome exato: Flamengo, Real Madrid..."
+        placeholder="Nome exato: Cruzeiro, Real Madrid..."
         autocomplete="off"
       >
       <button type="submit" id="botao-buscar" class="search__button">Buscar</button>
     </form>
 
     <div class="chips">
-      <button type="button" class="chip" data-time="Flamengo">Flamengo</button>
       <button type="button" class="chip" data-time="Real Madrid">Real Madrid</button>
       <button type="button" class="chip" data-time="Los Angeles Lakers">Lakers</button>
       <button type="button" class="chip" data-time="Manchester United">Manchester United</button>
-      <button type="button" class="chip" data-time="Corinthians">Corinthians</button>
+      <button type="button" class="chip" data-time="Cruzeiro">Cruzeiro</button>
     </div>
   </header>
 
@@ -54,11 +53,28 @@
         <button type="button" id="botao-buscar-ligas" class="search__button" disabled>Buscar ligas</button>
       </div>
       <div class="explorar__selects explorar__selects--liga" id="area-select-liga" hidden>
-        <select id="select-liga" class="select">
-          <option value="">Escolha uma liga</option>
-        </select>
+        <input
+          id="campo-liga"
+          class="select"
+          type="text"
+          list="lista-ligas"
+          placeholder="Digite ou escolha uma liga"
+          autocomplete="off"
+        >
+        <button type="button" id="botao-ver-times" class="search__button">Ver times</button>
+        <datalist id="lista-ligas"></datalist>
       </div>
     </section>
+
+    <div class="filtro-times" id="area-filtro-times" hidden>
+      <input
+        id="campo-filtro-times"
+        class="select"
+        type="text"
+        placeholder="Filtrar pelo nome do time..."
+        autocomplete="off"
+      >
+    </div>
 
     <section id="resultado" class="resultado" aria-live="polite">
       <p class="estado-inicial">Nenhum time buscado ainda. Escolha um dos times acima, explore por liga, ou digite o seu.</p>
