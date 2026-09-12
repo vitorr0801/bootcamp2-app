@@ -84,28 +84,34 @@ function traduzirPais(paisDigitado) {
   return PAISES_PT_PARA_EN[chave] || paisDigitado;
 }
 
-// A API às vezes corta a lista de ligas antes de chegar na liga mais
-// famosa de um país (ex: o Brasil tem dezenas de campeonatos estaduais
-// que vêm antes da Série A). Para não deixar a liga principal invisível,
-// mantemos aqui um "reforço" com o nome oficial das ligas mais
-// conhecidas, adicionado manualmente caso a API não a traga.
-const LIGA_PRINCIPAL = {
-  "Soccer|Brazil": "Brazilian Serie A",
-  "Soccer|England": "English Premier League",
-  "Soccer|Spain": "Spanish La Liga",
-  "Soccer|Italy": "Italian Serie A",
-  "Soccer|Germany": "German Bundesliga",
-  "Soccer|France": "French Ligue 1",
-  "Soccer|Portugal": "Portuguese Primeira Liga",
-  "Soccer|Netherlands": "Dutch Eredivisie",
-  "Soccer|Mexico": "Mexican Primera Division",
-  "Soccer|Sweden": "Swedish Allsvenskan",
-  "Soccer|Argentina": "Argentinian Primera Division",
-  "Soccer|United States": "American Major League Soccer",
-  "Basketball|United States": "NBA",
-  "Ice Hockey|United States": "NHL",
-  "Baseball|United States": "MLB",
-  "American Football|United States": "NFL",
+// A busca dinâmica de ligas da API às vezes corta as ligas mais famosas
+// de um país antes que elas apareçam (ex: o Brasil tem dezenas de
+// campeonatos estaduais que vêm antes da Série A). Para não deixar as
+// ligas mais conhecidas invisíveis, mantemos aqui uma lista "curada"
+// por país/esporte, que é sempre adicionada ao topo do select, mesmo
+// que a API não a traga.
+const LIGAS_FAMOSAS = {
+  "Soccer|England": [
+    "English Premier League",
+    "English League Championship",
+    "English League One",
+    "English League Two",
+  ],
+  "Soccer|Spain": ["Spanish La Liga", "Spanish Adelante"],
+  "Soccer|Italy": ["Italian Serie A", "Italian Serie B"],
+  "Soccer|Germany": ["German Bundesliga", "German 2. Bundesliga"],
+  "Soccer|France": ["French Ligue 1", "French Ligue 2"],
+  "Soccer|Brazil": ["Brazilian Serie A", "Brazilian Serie B", "Brazilian Serie C", "Brazilian Serie D"],
+  "Soccer|Portugal": ["Portuguese Primeira Liga"],
+  "Soccer|Netherlands": ["Dutch Eredivisie"],
+  "Soccer|Mexico": ["Mexican Primera Division"],
+  "Soccer|Sweden": ["Swedish Allsvenskan", "Swedish Superettan"],
+  "Soccer|Argentina": ["Argentinian Primera Division"],
+  "Soccer|United States": ["American Major League Soccer"],
+  "Basketball|United States": ["NBA"],
+  "Ice Hockey|United States": ["NHL"],
+  "Baseball|United States": ["MLB"],
+  "American Football|United States": ["NFL"],
 };
 
 const area = document.getElementById("resultado");
@@ -116,91 +122,9 @@ const selectEsporte = document.getElementById("select-esporte");
 const campoPais = document.getElementById("campo-pais");
 const botaoBuscarLigas = document.getElementById("botao-buscar-ligas");
 const areaSelectLiga = document.getElementById("area-select-liga");
-const campoLiga = document.getElementById("campo-liga");
-const botaoVerTimes = document.getElementById("botao-ver-times");
-const listaLigas = document.getElementById("lista-ligas");
+const selectLiga = document.getElementById("select-liga");
 const areaFiltroTimes = document.getElementById("area-filtro-times");
 const campoFiltroTimes = document.getElementById("campo-filtro-times");
-
-// Apelidos populares que não aparecem como substring dentro do nome
-// oficial da liga (ex: "brasileirão" não está contido em "Brazilian
-// Serie A"). Usado como uma camada extra de tolerância na busca.
-const APELIDOS_LIGA = {
-  "brasileirao": "Brazilian Serie A",
-  "brasileirao serie a": "Brazilian Serie A",
-  "premierada": "English Premier League",
-  "premiere league": "English Premier League",
-  "liga espanhola": "Spanish La Liga",
-  "campeonato italiano": "Italian Serie A",
-  "campeonato alemao": "German Bundesliga",
-  "campeonato frances": "French Ligue 1",
-  "liga inglesa": "English Premier League",
-  "liga sueca": "Swedish Allsvenskan",
-};
-
-// Adjetivo em inglês usado pela TheSportsDB para nomear ligas de cada
-// país (ex: "Brazilian Serie B", "English Division 2"). Usado para
-// reconstruir automaticamente nomes de ligas por padrão (Série X,
-// Divisão X), sem precisar cadastrar cada liga na mão.
-const PAIS_PARA_ADJETIVO = {
-  "England": "English",
-  "Scotland": "Scottish",
-  "Wales": "Welsh",
-  "Republic of Ireland": "Irish",
-  "Brazil": "Brazilian",
-  "Spain": "Spanish",
-  "Italy": "Italian",
-  "Germany": "German",
-  "France": "French",
-  "Portugal": "Portuguese",
-  "Netherlands": "Dutch",
-  "Mexico": "Mexican",
-  "Argentina": "Argentinian",
-  "United States": "American",
-  "Sweden": "Swedish",
-  "Belgium": "Belgian",
-  "Turkey": "Turkish",
-  "Russia": "Russian",
-  "China": "Chinese",
-  "Japan": "Japanese",
-  "Australia": "Australian",
-  "Canada": "Canadian",
-  "Chile": "Chilean",
-  "Colombia": "Colombian",
-  "Uruguay": "Uruguayan",
-  "Paraguay": "Paraguayan",
-  "Peru": "Peruvian",
-  "Greece": "Greek",
-  "Switzerland": "Swiss",
-  "Austria": "Austrian",
-  "Denmark": "Danish",
-  "Norway": "Norwegian",
-  "Poland": "Polish",
-  "Croatia": "Croatian",
-  "Serbia": "Serbian",
-  "Ukraine": "Ukrainian",
-  "Egypt": "Egyptian",
-  "Morocco": "Moroccan",
-  "Saudi Arabia": "Saudi",
-  "Qatar": "Qatari",
-  "South Korea": "South Korean",
-  "India": "Indian",
-};
-
-// Lembra o esporte/país da última busca de ligas, pra poder reconstruir
-// nomes de liga por padrão (ver gerarCandidatosPorPadrao).
-let ultimoEsporteBuscado = "";
-let ultimoPaisBuscado = "";
-
-// Mapa "rótulo mostrado" -> "nome oficial da liga", pra recuperar o
-// valor certo depois que o usuário digita/escolhe uma sugestão do
-// datalist (o rótulo pode ter o "★" na frente, o valor real não).
-let mapaLigasAtual = {};
-
-// Guarda os objetos completos das ligas da última busca (não só os
-// rótulos), pra permitir um match parcial tolerante — ex: digitar
-// "premier league" encontra "English Premier League" nessa lista.
-let ligasAtuais = [];
 
 // Guarda os últimos times carregados (por nome ou por liga), pra
 // filtrar pelo nome sem precisar fazer uma nova chamada à API.
@@ -210,28 +134,37 @@ let ultimosTimesCarregados = [];
 // se um time buscado individualmente realmente pertence a ela.
 let ligaAtualSelecionada = "";
 
+// ---------- Ajudante central de requisições ----------
+
+// Concentra o padrão repetido em toda chamada à API: pedir, tratar
+// falha de rede, checar se a resposta veio OK, e converter pra JSON.
+// Retorna os dados em caso de sucesso, ou `null` se algo deu errado
+// (nesse caso, quem chamou deve mostrar o estado de erro).
+async function buscarJSON(url) {
+  let resposta;
+  try {
+    resposta = await fetch(url);
+  } catch (erro) {
+    return null;
+  }
+
+  if (!resposta.ok) return null;
+
+  try {
+    return await resposta.json();
+  } catch (erro) {
+    return null;
+  }
+}
+
 // ---------- Busca direta por nome exato de time ----------
 
 async function buscarPorNome(termo) {
   mostrarCarregando();
 
-  let resposta;
-  try {
-    resposta = await fetch(`${BASE_URL}/searchteams.php?t=${encodeURIComponent(termo)}`);
-  } catch (erro) {
-    mostrarErro();
-    return;
-  }
+  const dados = await buscarJSON(`${BASE_URL}/searchteams.php?t=${encodeURIComponent(termo)}`);
 
-  if (!resposta.ok) {
-    mostrarErro();
-    return;
-  }
-
-  let dados;
-  try {
-    dados = await resposta.json();
-  } catch (erro) {
+  if (!dados) {
     mostrarErro();
     return;
   }
@@ -259,94 +192,63 @@ async function buscarLigas(esporte, pais) {
   areaSelectLiga.hidden = true;
   mostrarCarregando();
 
-  let resposta;
-  try {
-    resposta = await fetch(
-      `${BASE_URL}/search_all_leagues.php?c=${encodeURIComponent(pais)}&s=${encodeURIComponent(esporte)}`
-    );
-  } catch (erro) {
+  const dados = await buscarJSON(
+    `${BASE_URL}/search_all_leagues.php?c=${encodeURIComponent(pais)}&s=${encodeURIComponent(esporte)}`
+  );
+
+  if (!dados) {
     mostrarErro();
     return;
   }
 
-  if (!resposta.ok) {
-    mostrarErro();
-    return;
-  }
+  const ligasDaApi = dados.countries || [];
+  const nomesFamosos = LIGAS_FAMOSAS[`${esporte}|${pais}`] || [];
 
-  let dados;
-  try {
-    dados = await resposta.json();
-  } catch (erro) {
-    mostrarErro();
-    return;
-  }
+  // Junta as ligas famosas (curadas por nós) com as que a API trouxe,
+  // sem duplicar. As famosas vêm primeiro e marcadas com "★", já que
+  // são as que a maioria das pessoas procura.
+  const nomesJaNaApi = new Set(ligasDaApi.map((l) => normalizarTexto(l.strLeague)));
 
-  const ligas = dados.countries;
+  const ligasFamosas = nomesFamosos
+    .filter((nome) => !nomesJaNaApi.has(normalizarTexto(nome)))
+    .map((nome) => ({ strLeague: nome, famosa: true }));
 
-  if (!ligas || ligas.length === 0) {
+  const ligas = [
+    ...ligasFamosas,
+    ...ligasDaApi.map((l) => ({ strLeague: l.strLeague, famosa: nomesFamosos.some((n) => normalizarTexto(n) === normalizarTexto(l.strLeague)) })),
+  ];
+
+  if (ligas.length === 0) {
     mostrarVazio(
       `Não encontramos ligas de "${escaparHTML(pais)}" para esse esporte. Verifique se digitou o nome do país corretamente.`
     );
     return;
   }
 
-  // Garante que a liga mais famosa daquele país/esporte apareça, mesmo
-  // se a API tiver cortado ela da lista (ver comentário em LIGA_PRINCIPAL).
-  const nomeLigaPrincipal = LIGA_PRINCIPAL[`${esporte}|${pais}`];
-  const jaEstaNaLista = ligas.some(
-    (l) => normalizarTexto(l.strLeague) === normalizarTexto(nomeLigaPrincipal || "")
-  );
-
-  if (nomeLigaPrincipal && !jaEstaNaLista) {
-    ligas.unshift({ strLeague: nomeLigaPrincipal, principal: true });
-  }
-
-  ultimoEsporteBuscado = esporte;
-  ultimoPaisBuscado = pais;
-
-  popularListaLigas(ligas);
-  area.innerHTML = `<p class="estado-inicial">Encontramos ${ligas.length} liga(s). Digite ou escolha uma acima para ver os times.</p>`;
+  popularSelectLigas(ligas);
+  area.innerHTML = `<p class="estado-inicial">Encontramos ${ligas.length} liga(s). Escolha uma no select acima para ver os times.</p>`;
 }
 
-function popularListaLigas(ligas) {
-  mapaLigasAtual = {};
-  ligasAtuais = ligas;
-
-  listaLigas.innerHTML = ligas
-    .map((l) => {
-      const rotulo = l.principal ? `★ ${l.strLeague}` : l.strLeague;
-      mapaLigasAtual[rotulo] = l.strLeague;
-      return `<option value="${escaparHTML(rotulo)}"></option>`;
-    })
-    .join("");
+function popularSelectLigas(ligas) {
+  selectLiga.innerHTML =
+    `<option value="">Escolha uma liga</option>` +
+    ligas
+      .map((l) => {
+        const rotulo = l.famosa ? `★ ${l.strLeague}` : l.strLeague;
+        return `<option value="${escaparHTML(l.strLeague)}">${escaparHTML(rotulo)}</option>`;
+      })
+      .join("");
 
   areaSelectLiga.hidden = false;
-  campoLiga.value = "";
-  campoLiga.focus();
 }
 
 async function buscarPorLiga(ligaNome) {
   ligaAtualSelecionada = ligaNome;
   mostrarCarregando();
 
-  let resposta;
-  try {
-    resposta = await fetch(`${BASE_URL}/search_all_teams.php?l=${encodeURIComponent(ligaNome)}`);
-  } catch (erro) {
-    mostrarErro();
-    return;
-  }
+  const dados = await buscarJSON(`${BASE_URL}/search_all_teams.php?l=${encodeURIComponent(ligaNome)}`);
 
-  if (!resposta.ok) {
-    mostrarErro();
-    return;
-  }
-
-  let dados;
-  try {
-    dados = await resposta.json();
-  } catch (erro) {
+  if (!dados) {
     mostrarErro();
     return;
   }
@@ -357,6 +259,42 @@ async function buscarPorLiga(ligaNome) {
   }
 
   carregarTimes(dados.teams);
+}
+
+// ---------- Buscar um time específico dentro da liga selecionada ----------
+
+async function buscarTimeNaLigaAtual(nomeTime) {
+  mostrarCarregando();
+
+  const dados = await buscarJSON(`${BASE_URL}/searchteams.php?t=${encodeURIComponent(nomeTime)}`);
+
+  if (!dados) {
+    mostrarErro();
+    return;
+  }
+
+  if (!dados.teams) {
+    mostrarVazio(`Não encontramos nenhum time chamado "${escaparHTML(nomeTime)}".`);
+    return;
+  }
+
+  const time = dados.teams[0];
+
+  if (normalizarTexto(time.strLeague || "") !== normalizarTexto(ligaAtualSelecionada)) {
+    mostrarVazio(
+      `Encontramos "${escaparHTML(time.strTeam)}", mas ele joga em "${escaparHTML(time.strLeague || "outra liga")}", não na liga selecionada.`
+    );
+    return;
+  }
+
+  // Adiciona esse time à lista carregada (se ainda não estiver nela),
+  // pra continuar aparecendo caso o usuário limpe o filtro depois.
+  const jaEstaNaLista = ultimosTimesCarregados.some((t) => t.idTeam === time.idTeam);
+  if (!jaEstaNaLista) {
+    ultimosTimesCarregados = [...ultimosTimesCarregados, time];
+  }
+
+  renderizarTimes([time]);
 }
 
 // ---------- Estados da tela ----------
@@ -503,85 +441,9 @@ campoPais.addEventListener("keydown", (evento) => {
   }
 });
 
-const ORDINAIS_PARA_NUMERO = {
-  primeira: "1",
-  segunda: "2",
-  terceira: "3",
-  quarta: "4",
-};
-
-function gerarCandidatoPorPadrao(textoNormalizado) {
-  const adjetivo = PAIS_PARA_ADJETIVO[ultimoPaisBuscado];
-  if (!adjetivo) return null;
-
-  // Reconhece "serie a/b/c/d" (com ou sem acento, já normalizado).
-  const matchSerie = textoNormalizado.match(/^serie ([a-d])$/);
-  if (matchSerie) {
-    return `${adjetivo} Serie ${matchSerie[1].toUpperCase()}`;
-  }
-
-  // Reconhece "divisao 1/2/3/4", "division 1/2/3/4", ou por extenso
-  // ("segunda divisao", "primeira divisao").
-  const matchDivisaoNumero = textoNormalizado.match(/^(?:divisao|division) (\d)$/);
-  if (matchDivisaoNumero) {
-    return `${adjetivo} Division ${matchDivisaoNumero[1]}`;
-  }
-
-  const matchDivisaoOrdinal = textoNormalizado.match(/^(primeira|segunda|terceira|quarta) divisao$/);
-  if (matchDivisaoOrdinal) {
-    return `${adjetivo} Division ${ORDINAIS_PARA_NUMERO[matchDivisaoOrdinal[1]]}`;
-  }
-
-  return null;
-}
-
-function encontrarLigaPeloTexto(textoDigitado) {
-  // Camada 1: match exato com um rótulo do datalist (o usuário
-  // escolheu uma sugestão diretamente).
-  const exato = mapaLigasAtual[textoDigitado];
-  if (exato) return exato;
-
-  const textoNormalizado = normalizarTexto(textoDigitado);
-
-  // Camada 2: o texto digitado aparece dentro do nome de alguma liga
-  // já carregada para esse país/esporte (ex: "premier league" dentro
-  // de "English Premier League"). Como a lista já está filtrada por
-  // país e esporte, essa busca tende a ser bem precisa.
-  const porSubstring = ligasAtuais.find((l) =>
-    normalizarTexto(l.strLeague).includes(textoNormalizado)
-  );
-  if (porSubstring) return porSubstring.strLeague;
-
-  // Camada 3: apelidos populares que não aparecem como substring do
-  // nome oficial (ex: "brasileirão" -> "Brazilian Serie A").
-  const apelido = APELIDOS_LIGA[textoNormalizado];
-  if (apelido) return apelido;
-
-  // Camada 4: reconstrói o nome por padrão a partir do país buscado
-  // (ex: "série b" no Brasil -> "Brazilian Serie B"), cobrindo
-  // divisões/séries que a API pode ter cortado da lista.
-  const porPadrao = gerarCandidatoPorPadrao(textoNormalizado);
-  if (porPadrao) return porPadrao;
-
-  // Camada 5: nenhuma das anteriores bateu — tenta exatamente o que
-  // foi digitado, caso seja um nome de liga real fora da nossa lista.
-  return textoDigitado;
-}
-
-function dispararBuscaDeTimes() {
-  const textoDigitado = campoLiga.value.trim();
-  if (!textoDigitado) return;
-
-  buscarPorLiga(encontrarLigaPeloTexto(textoDigitado));
-}
-
-botaoVerTimes.addEventListener("click", dispararBuscaDeTimes);
-
-campoLiga.addEventListener("keydown", (evento) => {
-  if (evento.key === "Enter") {
-    evento.preventDefault();
-    dispararBuscaDeTimes();
-  }
+selectLiga.addEventListener("change", () => {
+  const liga = selectLiga.value;
+  if (liga) buscarPorLiga(liga);
 });
 
 campoFiltroTimes.addEventListener("input", () => {
@@ -610,53 +472,5 @@ area.addEventListener("click", (evento) => {
   const botao = evento.target.closest(".botao-buscar-time-liga");
   if (botao) buscarTimeNaLigaAtual(botao.dataset.termo);
 });
-
-async function buscarTimeNaLigaAtual(nomeTime) {
-  mostrarCarregando();
-
-  let resposta;
-  try {
-    resposta = await fetch(`${BASE_URL}/searchteams.php?t=${encodeURIComponent(nomeTime)}`);
-  } catch (erro) {
-    mostrarErro();
-    return;
-  }
-
-  if (!resposta.ok) {
-    mostrarErro();
-    return;
-  }
-
-  let dados;
-  try {
-    dados = await resposta.json();
-  } catch (erro) {
-    mostrarErro();
-    return;
-  }
-
-  if (!dados.teams) {
-    mostrarVazio(`Não encontramos nenhum time chamado "${escaparHTML(nomeTime)}".`);
-    return;
-  }
-
-  const time = dados.teams[0];
-
-  if (normalizarTexto(time.strLeague || "") !== normalizarTexto(ligaAtualSelecionada)) {
-    mostrarVazio(
-      `Encontramos "${escaparHTML(time.strTeam)}", mas ele joga em "${escaparHTML(time.strLeague || "outra liga")}", não na liga selecionada.`
-    );
-    return;
-  }
-
-  // Adiciona esse time à lista carregada (se ainda não estiver nela),
-  // pra continuar aparecendo caso o usuário limpe o filtro depois.
-  const jaEstaNaLista = ultimosTimesCarregados.some((t) => t.idTeam === time.idTeam);
-  if (!jaEstaNaLista) {
-    ultimosTimesCarregados = [...ultimosTimesCarregados, time];
-  }
-
-  renderizarTimes([time]);
-}
 
 popularSelectEsportes();

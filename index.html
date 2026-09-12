@@ -53,16 +53,9 @@
         <button type="button" id="botao-buscar-ligas" class="search__button" disabled>Buscar ligas</button>
       </div>
       <div class="explorar__selects explorar__selects--liga" id="area-select-liga" hidden>
-        <input
-          id="campo-liga"
-          class="select"
-          type="text"
-          list="lista-ligas"
-          placeholder="Digite ou escolha uma liga"
-          autocomplete="off"
-        >
-        <button type="button" id="botao-ver-times" class="search__button">Ver times</button>
-        <datalist id="lista-ligas"></datalist>
+        <select id="select-liga" class="select">
+          <option value="">Escolha uma liga</option>
+        </select>
       </div>
     </section>
 
