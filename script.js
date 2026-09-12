@@ -1,18 +1,32 @@
-const BASE_URL = "https://www.thesportsdb.com/api/v1/json/3/searchteams.php";
+const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
+
+const ESPORTES = [
+  { label: "Futebol", valor: "Soccer" },
+  { label: "Basquete", valor: "Basketball" },
+  { label: "Hóquei no gelo", valor: "Ice Hockey" },
+  { label: "Beisebol", valor: "Baseball" },
+  { label: "Futebol Americano", valor: "American Football" },
+];
 
 const area = document.getElementById("resultado");
 const form = document.getElementById("form-busca");
 const campoBusca = document.getElementById("campo-busca");
 const chips = document.querySelectorAll(".chip");
+const selectEsporte = document.getElementById("select-esporte");
+const campoPais = document.getElementById("campo-pais");
+const botaoBuscarLigas = document.getElementById("botao-buscar-ligas");
+const areaSelectLiga = document.getElementById("area-select-liga");
+const selectLiga = document.getElementById("select-liga");
 
-async function buscarTimes(termo) {
+// ---------- Busca direta por nome exato de time ----------
+
+async function buscarPorNome(termo) {
   mostrarCarregando();
 
   let resposta;
   try {
-    resposta = await fetch(`${BASE_URL}?t=${encodeURIComponent(termo)}`);
+    resposta = await fetch(`${BASE_URL}/searchteams.php?t=${encodeURIComponent(termo)}`);
   } catch (erro) {
-    // Erro de rede: sem internet, API fora do ar, CORS bloqueado, etc.
     mostrarErro();
     return;
   }
@@ -34,24 +48,110 @@ async function buscarTimes(termo) {
   // retornando "teams": null. Por isso tratamos esse caso separado
   // de um erro real de rede/API.
   if (!dados.teams) {
-    mostrarVazio(termo);
+    mostrarVazio(`Nenhum time encontrado para "${escaparHTML(termo)}". Tente outro nome, como "Barcelona" ou "Lakers".`);
     return;
   }
 
-  mostrarTimes(dados.teams);
+  renderizarTimes(dados.teams);
 }
+
+// ---------- Explorar por esporte + país -> ligas ----------
+
+function popularSelectEsportes() {
+  selectEsporte.innerHTML =
+    `<option value="">Escolha um esporte</option>` +
+    ESPORTES.map((e) => `<option value="${e.valor}">${e.label}</option>`).join("");
+}
+
+async function buscarLigas(esporte, pais) {
+  areaSelectLiga.hidden = true;
+  mostrarCarregando();
+
+  let resposta;
+  try {
+    resposta = await fetch(
+      `${BASE_URL}/search_all_leagues.php?c=${encodeURIComponent(pais)}&s=${encodeURIComponent(esporte)}`
+    );
+  } catch (erro) {
+    mostrarErro();
+    return;
+  }
+
+  if (!resposta.ok) {
+    mostrarErro();
+    return;
+  }
+
+  let dados;
+  try {
+    dados = await resposta.json();
+  } catch (erro) {
+    mostrarErro();
+    return;
+  }
+
+  const ligas = dados.countries;
+
+  if (!ligas || ligas.length === 0) {
+    mostrarVazio(
+      `Não encontramos ligas de ${escaparHTML(pais)} para esse esporte. Tente o nome do país em inglês (ex: "England", "Brazil", "Sweden").`
+    );
+    return;
+  }
+
+  popularSelectLigas(ligas);
+  area.innerHTML = `<p class="estado-inicial">Encontramos ${ligas.length} liga(s). Escolha uma no select acima para ver os times.</p>`;
+}
+
+function popularSelectLigas(ligas) {
+  selectLiga.innerHTML =
+    `<option value="">Escolha uma liga</option>` +
+    ligas
+      .map((l) => `<option value="${escaparHTML(l.strLeague)}">${escaparHTML(l.strLeague)}</option>`)
+      .join("");
+  areaSelectLiga.hidden = false;
+}
+
+async function buscarPorLiga(ligaNome) {
+  mostrarCarregando();
+
+  let resposta;
+  try {
+    resposta = await fetch(`${BASE_URL}/search_all_teams.php?l=${encodeURIComponent(ligaNome)}`);
+  } catch (erro) {
+    mostrarErro();
+    return;
+  }
+
+  if (!resposta.ok) {
+    mostrarErro();
+    return;
+  }
+
+  let dados;
+  try {
+    dados = await resposta.json();
+  } catch (erro) {
+    mostrarErro();
+    return;
+  }
+
+  if (!dados.teams) {
+    mostrarVazio(`Não encontramos times cadastrados para "${escaparHTML(ligaNome)}" no momento.`);
+    return;
+  }
+
+  renderizarTimes(dados.teams);
+}
+
+// ---------- Estados da tela ----------
 
 function mostrarCarregando() {
   area.innerHTML = `<p class="estado-carregando">Buscando nas arquibancadas...</p>`;
 }
 
-function mostrarVazio(termo) {
-  area.innerHTML = `
-    <p class="estado-vazio">
-      Nenhum time encontrado para "<strong>${escaparHTML(termo)}</strong>".
-      Tente outro nome, como "Barcelona" ou "Lakers".
-    </p>
-  `;
+function mostrarVazio(mensagem) {
+  area.innerHTML = `<p class="estado-vazio">${mensagem}</p>`;
 }
 
 function mostrarErro() {
@@ -63,7 +163,7 @@ function mostrarErro() {
   `;
 }
 
-function mostrarTimes(times) {
+function renderizarTimes(times) {
   area.innerHTML = times.map(criarCardHTML).join("");
 }
 
@@ -112,16 +212,58 @@ function escaparHTML(valor) {
   return div.innerHTML;
 }
 
+// ---------- Eventos ----------
+
 form.addEventListener("submit", (evento) => {
   evento.preventDefault();
   const termo = campoBusca.value.trim();
-  if (termo) buscarTimes(termo);
+  if (termo) buscarPorNome(termo);
 });
 
 chips.forEach((chip) => {
   chip.addEventListener("click", () => {
     const termo = chip.dataset.time;
     campoBusca.value = termo;
-    buscarTimes(termo);
+    buscarPorNome(termo);
   });
 });
+
+selectEsporte.addEventListener("change", () => {
+  const esporte = selectEsporte.value;
+  areaSelectLiga.hidden = true;
+
+  if (!esporte) {
+    campoPais.disabled = true;
+    campoPais.value = "";
+    campoPais.placeholder = "Escolha um esporte primeiro";
+    botaoBuscarLigas.disabled = true;
+    return;
+  }
+
+  campoPais.disabled = false;
+  campoPais.value = "";
+  campoPais.placeholder = "País em inglês: England, Brazil...";
+  botaoBuscarLigas.disabled = false;
+});
+
+function dispararBuscaDeLigas() {
+  const esporte = selectEsporte.value;
+  const pais = campoPais.value.trim();
+  if (esporte && pais) buscarLigas(esporte, pais);
+}
+
+botaoBuscarLigas.addEventListener("click", dispararBuscaDeLigas);
+
+campoPais.addEventListener("keydown", (evento) => {
+  if (evento.key === "Enter") {
+    evento.preventDefault();
+    dispararBuscaDeLigas();
+  }
+});
+
+selectLiga.addEventListener("change", () => {
+  const liga = selectLiga.value;
+  if (liga) buscarPorLiga(liga);
+});
+
+popularSelectEsportes();

@@ -14,14 +14,14 @@
   <header class="hero">
     <p class="hero__kicker">explorador de times</p>
     <h1 class="hero__title">ESCALAÇÃO</h1>
-    <p class="hero__subtitle">Digite o nome de um time de qualquer esporte do mundo e veja o escudo, o estádio e a história dele em segundos.</p>
+    <p class="hero__subtitle">Explore times por esporte e liga, ou busque direto pelo nome exato de um clube.</p>
 
     <form class="search" id="form-busca">
       <input
         type="text"
         id="campo-busca"
         class="search__input"
-        placeholder="Flamengo, Real Madrid, Lakers..."
+        placeholder="Nome exato: Flamengo, Real Madrid..."
         autocomplete="off"
       >
       <button type="submit" id="botao-buscar" class="search__button">Buscar</button>
@@ -31,14 +31,37 @@
       <button type="button" class="chip" data-time="Flamengo">Flamengo</button>
       <button type="button" class="chip" data-time="Real Madrid">Real Madrid</button>
       <button type="button" class="chip" data-time="Los Angeles Lakers">Lakers</button>
-      <button type="button" class="chip" data-time="Manchester United">Man United</button>
+      <button type="button" class="chip" data-time="Manchester United">Manchester United</button>
       <button type="button" class="chip" data-time="Corinthians">Corinthians</button>
     </div>
   </header>
 
   <main>
+    <section class="explorar">
+      <p class="explorar__titulo">ou explore times por esporte, país e liga</p>
+      <div class="explorar__selects">
+        <select id="select-esporte" class="select">
+          <option value="">Escolha um esporte</option>
+        </select>
+        <input
+          id="campo-pais"
+          class="select"
+          type="text"
+          placeholder="Escolha um esporte primeiro"
+          autocomplete="off"
+          disabled
+        >
+        <button type="button" id="botao-buscar-ligas" class="search__button" disabled>Buscar ligas</button>
+      </div>
+      <div class="explorar__selects explorar__selects--liga" id="area-select-liga" hidden>
+        <select id="select-liga" class="select">
+          <option value="">Escolha uma liga</option>
+        </select>
+      </div>
+    </section>
+
     <section id="resultado" class="resultado" aria-live="polite">
-      <p class="estado-inicial">Nenhum time buscado ainda. Escolha um dos times acima ou digite o seu.</p>
+      <p class="estado-inicial">Nenhum time buscado ainda. Escolha um dos times acima, explore por liga, ou digite o seu.</p>
     </section>
   </main>
 
