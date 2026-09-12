@@ -1,5 +1,14 @@
 const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
 
+// Placeholder embutido (SVG em data URI) usado quando o time não tem
+// escudo cadastrado — evita depender de um serviço externo que pode
+// falhar ou ficar fora do ar.
+const ESCUDO_PLACEHOLDER =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 84"><rect width="84" height="84" rx="42" fill="#16233A"/><text x="50%" y="55%" text-anchor="middle" font-family="sans-serif" font-size="34" fill="#93A1B8">?</text></svg>`
+  );
+
 const ESPORTES = [
   { label: "Futebol", valor: "Soccer" },
   { label: "Basquete", valor: "Basketball" },
@@ -398,7 +407,7 @@ function renderizarTimes(times) {
 }
 
 function criarCardHTML(time) {
-  const escudo = time.strTeamBadge || "https://via.placeholder.com/84?text=%3F";
+  const escudo = time.strBadge || ESCUDO_PLACEHOLDER;
   const nome = escaparHTML(time.strTeam || "Time sem nome");
   const liga = escaparHTML(time.strLeague || "Liga não informada");
   const estadio = escaparHTML(time.strStadium || "Não informado");
@@ -410,7 +419,7 @@ function criarCardHTML(time) {
     <article class="card">
       <div class="card__faixa"></div>
       <div class="card__corpo">
-        <img class="card__escudo" src="${escudo}" alt="Escudo do ${nome}" loading="lazy">
+        <img class="card__escudo" src="${escudo}" alt="Escudo do ${nome}" loading="lazy" onerror="this.onerror=null; this.src='${ESCUDO_PLACEHOLDER}';">
         <h2 class="card__nome">${nome}</h2>
         <p class="card__liga">${liga}</p>
         <div class="card__stats">
