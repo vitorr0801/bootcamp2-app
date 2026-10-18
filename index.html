@@ -33,6 +33,11 @@
       <button type="button" class="chip" data-time="Manchester United">Manchester United</button>
       <button type="button" class="chip" data-time="Cruzeiro">Cruzeiro</button>
     </div>
+
+    <a class="atalho-favoritos" href="#favoritos">
+      ★ Meus favoritos
+      <span class="atalho-favoritos__contador" id="contador-favoritos">—</span>
+    </a>
   </header>
 
   <main>
@@ -72,12 +77,24 @@
     <section id="resultado" class="resultado" aria-live="polite">
       <p class="estado-inicial">Nenhum time buscado ainda. Escolha um dos times acima, explore por liga, ou digite o seu.</p>
     </section>
+
+    <section class="favoritos" id="favoritos" aria-labelledby="titulo-favoritos">
+      <h2 class="favoritos__titulo" id="titulo-favoritos">★ Meus favoritos</h2>
+      <p class="favoritos__descricao">Os times que você favorita ficam salvos num banco de dados — continuam aqui mesmo depois de fechar o navegador.</p>
+      <div id="lista-favoritos" class="favoritos__lista" aria-live="polite">
+        <p class="estado-carregando">Carregando seus favoritos...</p>
+      </div>
+    </section>
   </main>
 
   <footer class="rodape">
-    <p>Dados fornecidos por <a href="https://www.thesportsdb.com/" target="_blank" rel="noopener">TheSportsDB</a> · Projeto acadêmico de bootcamp</p>
+    <p>Dados fornecidos por <a href="https://www.thesportsdb.com/" target="_blank" rel="noopener">TheSportsDB</a> · Favoritos salvos com <a href="https://supabase.com/" target="_blank" rel="noopener">Supabase</a> · Projeto acadêmico de bootcamp</p>
   </footer>
 
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Biblioteca do Supabase (expõe window.supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
 </html>
