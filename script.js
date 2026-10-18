@@ -1,5 +1,15 @@
 const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
 
+// ---------- Configuração do Supabase (persistência dos favoritos) ----------
+
+// Copie estes dois valores em: Supabase > Project Settings > API.
+// A chave "anon public" (ou "publishable") foi feita para uso no frontend,
+// então pode ficar aqui. NUNCA use a chave "service_role"/"secret" neste arquivo.
+const SUPABASE_URL = "https://lsnjpguiqjulyjfwfikw.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzbmpwZ3VpcWp1bHlqZndmaWt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNzk2MzAsImV4cCI6MjEwNzg1NTYzMH0.L65RCAsq7e7HHjF6fDImr51Zzywp8It_MMk_RK6yajI";
+
+const TABELA_FAVORITOS = "favoritos";
+
 // Placeholder embutido (SVG em data URI) usado quando o time não tem
 // escudo cadastrado — evita depender de um serviço externo que pode
 // falhar ou ficar fora do ar.
@@ -71,7 +81,7 @@ const PAISES_PT_PARA_EN = {
 function normalizarTexto(texto) {
   return texto
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .trim();
 }
@@ -125,6 +135,9 @@ const areaSelectLiga = document.getElementById("area-select-liga");
 const selectLiga = document.getElementById("select-liga");
 const areaFiltroTimes = document.getElementById("area-filtro-times");
 const campoFiltroTimes = document.getElementById("campo-filtro-times");
+const listaFavoritos = document.getElementById("lista-favoritos");
+const contadorFavoritos = document.getElementById("contador-favoritos");
+const toast = document.getElementById("toast");
 
 // Guarda os últimos times carregados (por nome ou por liga), pra
 // filtrar pelo nome sem precisar fazer uma nova chamada à API.
@@ -133,6 +146,10 @@ let ultimosTimesCarregados = [];
 // Guarda o nome oficial da liga selecionada no momento, pra conferir
 // se um time buscado individualmente realmente pertence a ela.
 let ligaAtualSelecionada = "";
+
+// Todo time já exibido na tela, por id. Serve para o botão "Favoritar"
+// descobrir quais dados salvar a partir do id que está no botão.
+const timesPorId = new Map();
 
 // ---------- Ajudante central de requisições ----------
 
@@ -341,11 +358,18 @@ function carregarTimes(times) {
 }
 
 function renderizarTimes(times) {
-  area.innerHTML = times.map(criarCardHTML).join("");
+  times.forEach((time) => {
+    if (time.idTeam) timesPorId.set(String(time.idTeam), time);
+  });
+
+  area.innerHTML = times.map((time) => criarCardHTML(time, criarBotaoFavoritarHTML(time))).join("");
+  atualizarBotoesFavoritar();
 }
 
-function criarCardHTML(time) {
-  const escudo = time.strBadge || ESCUDO_PLACEHOLDER;
+// `acoesHTML` é o rodapé do card: nos resultados da busca vai o botão
+// "Favoritar"; na seção de favoritos vai o botão "Excluir".
+function criarCardHTML(time, acoesHTML = "") {
+  const escudo = escaparHTML(time.strBadge || ESCUDO_PLACEHOLDER);
   const nome = escaparHTML(time.strTeam || "Time sem nome");
   const liga = escaparHTML(time.strLeague || "Liga não informada");
   const estadio = escaparHTML(time.strStadium || "Não informado");
@@ -378,15 +402,269 @@ function criarCardHTML(time) {
             <span class="card__stat-valor">${fundacao}</span>
           </div>
         </div>
+        ${acoesHTML ? `<div class="card__acoes">${acoesHTML}</div>` : ""}
       </div>
     </article>
   `;
 }
 
+// Escapa também aspas, porque o texto é usado dentro de atributos HTML
+// (alt, src, data-*). Os dados vêm da API e do banco, então nunca são
+// inseridos na página sem passar por aqui.
 function escaparHTML(valor) {
   const div = document.createElement("div");
   div.textContent = String(valor);
-  return div.innerHTML;
+  return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// ---------- Favoritos (persistência com Supabase) ----------
+
+// Cria o cliente do Supabase. Se a configuração estiver incompleta ou a
+// biblioteca não tiver carregado, devolve `null` e uma explicação — assim
+// a busca de times continua funcionando e só os favoritos avisam o motivo.
+function criarClienteSupabase() {
+  const configurado =
+    SUPABASE_URL.startsWith("https://") &&
+    !SUPABASE_URL.includes("SEU-PROJETO") &&
+    !SUPABASE_ANON_KEY.includes("SUA_CHAVE");
+
+  if (!configurado) {
+    return {
+      cliente: null,
+      motivo: "O banco de dados ainda não foi configurado (faltam a URL e a chave do Supabase no script.js).",
+    };
+  }
+
+  if (!window.supabase || typeof window.supabase.createClient !== "function") {
+    return {
+      cliente: null,
+      motivo: "Não foi possível carregar a biblioteca do Supabase. Verifique sua conexão com a internet.",
+    };
+  }
+
+  return { cliente: window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY), motivo: "" };
+}
+
+const { cliente: clienteSupabase, motivo: motivoBancoIndisponivel } = criarClienteSupabase();
+
+// Linhas da tabela `favoritos` que já foram carregadas do banco.
+let favoritos = [];
+
+function timeParaRegistro(time) {
+  const ano = Number.parseInt(time.intFormedYear, 10);
+
+  return {
+    id_time: String(time.idTeam),
+    nome_time: time.strTeam || "Time sem nome",
+    escudo_url: time.strBadge || null,
+    liga: time.strLeague || null,
+    esporte: time.strSport || null,
+    pais: time.strCountry || null,
+    estadio: time.strStadium || null,
+    ano_fundacao: Number.isFinite(ano) && ano > 0 ? ano : null,
+  };
+}
+
+// Converte uma linha do banco para o mesmo formato que a API devolve,
+// pra reaproveitar o `criarCardHTML` nos favoritos.
+function linhaParaTime(linha) {
+  return {
+    idTeam: linha.id_time,
+    strTeam: linha.nome_time,
+    strBadge: linha.escudo_url,
+    strLeague: linha.liga,
+    strSport: linha.esporte,
+    strCountry: linha.pais,
+    strStadium: linha.estadio,
+    intFormedYear: linha.ano_fundacao,
+  };
+}
+
+function encontrarFavoritoPorIdTime(idTime) {
+  return favoritos.find((f) => String(f.id_time) === String(idTime));
+}
+
+let temporizadorToast;
+
+function mostrarToast(mensagem, tipo = "info") {
+  toast.textContent = mensagem;
+  toast.className = `toast toast--${tipo}`;
+  toast.hidden = false;
+
+  clearTimeout(temporizadorToast);
+  temporizadorToast = setTimeout(() => {
+    toast.hidden = true;
+  }, 5000);
+}
+
+function mensagemDeErroDoBanco(erro) {
+  // 42501 = violação de política RLS (a tabela não permite essa operação
+  // para a chave anon). É o erro mais comum ao configurar o Supabase.
+  if (erro && (erro.code === "42501" || /row-level security/i.test(erro.message || ""))) {
+    return "O banco recusou a operação. Confira as políticas (RLS) da tabela favoritos no Supabase.";
+  }
+  return "Não foi possível falar com o banco de dados. Tente novamente em instantes.";
+}
+
+async function carregarFavoritos() {
+  if (!clienteSupabase) {
+    contadorFavoritos.textContent = "—";
+    listaFavoritos.innerHTML = `<p class="estado-erro">${escaparHTML(motivoBancoIndisponivel)}</p>`;
+    return;
+  }
+
+  try {
+    const { data, error } = await clienteSupabase
+      .from(TABELA_FAVORITOS)
+      .select("*")
+      .order("criado_em", { ascending: false });
+
+    if (error) throw error;
+
+    favoritos = data || [];
+    renderizarFavoritos();
+  } catch (erro) {
+    console.error("Erro ao listar favoritos:", erro);
+    contadorFavoritos.textContent = "—";
+    listaFavoritos.innerHTML = `<p class="estado-erro">${escaparHTML(mensagemDeErroDoBanco(erro))}</p>`;
+  }
+}
+
+function renderizarFavoritos() {
+  contadorFavoritos.textContent = String(favoritos.length);
+
+  if (favoritos.length === 0) {
+    listaFavoritos.innerHTML = `
+      <p class="estado-vazio">
+        Você ainda não favoritou nenhum time. Busque um time e clique em
+        "☆ Favoritar" para guardá-lo aqui.
+      </p>
+    `;
+  } else {
+    listaFavoritos.innerHTML = favoritos
+      .map((linha) => {
+        const botaoExcluir = `
+          <button type="button" class="botao-excluir-favorito" data-id="${escaparHTML(linha.id)}">
+            Excluir
+          </button>
+        `;
+        return criarCardHTML(linhaParaTime(linha), botaoExcluir);
+      })
+      .join("");
+  }
+
+  atualizarBotoesFavoritar();
+}
+
+function criarBotaoFavoritarHTML(time) {
+  if (!time.idTeam) return "";
+
+  return `
+    <button type="button" class="botao-favoritar" data-id-time="${escaparHTML(time.idTeam)}" aria-pressed="false">
+      ☆ Favoritar
+    </button>
+  `;
+}
+
+// Sincroniza todos os botões "Favoritar" da tela com a lista de favoritos
+// (marcado = já está salvo no banco).
+function atualizarBotoesFavoritar() {
+  document.querySelectorAll(".botao-favoritar").forEach((botao) => {
+    const favorito = Boolean(encontrarFavoritoPorIdTime(botao.dataset.idTime));
+    botao.setAttribute("aria-pressed", String(favorito));
+    botao.classList.toggle("is-ativo", favorito);
+    botao.textContent = favorito ? "★ Favoritado" : "☆ Favoritar";
+    botao.title = favorito ? "Clique para remover dos favoritos" : "Salvar nos favoritos";
+  });
+}
+
+// CREATE — salva o time no banco.
+async function salvarFavorito(time) {
+  const { data, error } = await clienteSupabase
+    .from(TABELA_FAVORITOS)
+    .insert(timeParaRegistro(time))
+    .select()
+    .single();
+
+  if (error) {
+    // 23505 = violação de unicidade: o time já está salvo (por exemplo,
+    // favoritado em outra aba). Só recarregamos a lista.
+    if (error.code === "23505") {
+      mostrarToast("Esse time já estava nos favoritos.", "info");
+      await carregarFavoritos();
+      return;
+    }
+    throw error;
+  }
+
+  favoritos = [data, ...favoritos];
+  renderizarFavoritos();
+  mostrarToast(`${time.strTeam} foi para os favoritos.`, "sucesso");
+}
+
+// DELETE — remove o registro do banco.
+async function removerFavorito(id) {
+  // O `.select()` devolve as linhas apagadas. Com RLS mal configurada o
+  // Supabase não dá erro: simplesmente não apaga nada. Conferir o retorno
+  // evita dizer que excluiu quando na verdade não excluiu.
+  const { data, error } = await clienteSupabase
+    .from(TABELA_FAVORITOS)
+    .delete()
+    .eq("id", id)
+    .select();
+
+  if (error) throw error;
+
+  if (!data || data.length === 0) {
+    await carregarFavoritos();
+    mostrarToast("Não foi possível excluir esse favorito. Confira as políticas (RLS) da tabela no Supabase.", "erro");
+    return;
+  }
+
+  favoritos = favoritos.filter((f) => String(f.id) !== String(id));
+  renderizarFavoritos();
+  mostrarToast("Favorito removido.", "info");
+}
+
+async function alternarFavorito(botao) {
+  if (!clienteSupabase) {
+    mostrarToast(motivoBancoIndisponivel, "erro");
+    return;
+  }
+
+  const idTime = botao.dataset.idTime;
+  const time = timesPorId.get(String(idTime));
+  if (!time) return;
+
+  botao.disabled = true;
+
+  try {
+    const existente = encontrarFavoritoPorIdTime(idTime);
+    if (existente) {
+      await removerFavorito(existente.id);
+    } else {
+      await salvarFavorito(time);
+    }
+  } catch (erro) {
+    console.error("Erro ao atualizar favorito:", erro);
+    mostrarToast(mensagemDeErroDoBanco(erro), "erro");
+  } finally {
+    botao.disabled = false;
+  }
+}
+
+async function excluirFavoritoDaLista(botao) {
+  if (!clienteSupabase) return;
+
+  botao.disabled = true;
+
+  try {
+    await removerFavorito(botao.dataset.id);
+  } catch (erro) {
+    console.error("Erro ao excluir favorito:", erro);
+    mostrarToast(mensagemDeErroDoBanco(erro), "erro");
+    botao.disabled = false;
+  }
 }
 
 // ---------- Eventos ----------
@@ -469,8 +747,20 @@ campoFiltroTimes.addEventListener("input", () => {
 });
 
 area.addEventListener("click", (evento) => {
-  const botao = evento.target.closest(".botao-buscar-time-liga");
-  if (botao) buscarTimeNaLigaAtual(botao.dataset.termo);
+  const botaoFavoritar = evento.target.closest(".botao-favoritar");
+  if (botaoFavoritar) {
+    alternarFavorito(botaoFavoritar);
+    return;
+  }
+
+  const botaoBuscarTime = evento.target.closest(".botao-buscar-time-liga");
+  if (botaoBuscarTime) buscarTimeNaLigaAtual(botaoBuscarTime.dataset.termo);
+});
+
+listaFavoritos.addEventListener("click", (evento) => {
+  const botaoExcluir = evento.target.closest(".botao-excluir-favorito");
+  if (botaoExcluir) excluirFavoritoDaLista(botaoExcluir);
 });
 
 popularSelectEsportes();
+carregarFavoritos();

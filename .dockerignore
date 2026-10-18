@@ -1,0 +1,25 @@
+# Controle de versão
+.git
+.gitignore
+.github
+
+# Documentação e evidências (não fazem parte da aplicação)
+README.md
+*.md
+*.pdf
+docs
+*.png
+*.jpg
+
+# Arquivos de infraestrutura (não precisam estar dentro da imagem)
+Dockerfile
+.dockerignore
+banco.sql
+
+# Lixo de editor e sistema
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+node_modules
+*.log
