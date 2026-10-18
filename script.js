@@ -5,7 +5,7 @@ const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
 // Copie estes dois valores em: Supabase > Project Settings > API.
 // A chave "anon public" (ou "publishable") foi feita para uso no frontend,
 // então pode ficar aqui. NUNCA use a chave "service_role"/"secret" neste arquivo.
-const SUPABASE_URL = "https://lsnjpguiqjulyjfwfikw.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://lsnjpguiqjulyjfwfikw.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzbmpwZ3VpcWp1bHlqZndmaWt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyNzk2MzAsImV4cCI6MjEwNzg1NTYzMH0.L65RCAsq7e7HHjF6fDImr51Zzywp8It_MMk_RK6yajI";
 
 const TABELA_FAVORITOS = "favoritos";
