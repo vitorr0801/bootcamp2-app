@@ -18,8 +18,6 @@
   box-sizing: border-box;
 }
 
-/* Garante que o atributo `hidden` sempre esconde o elemento, mesmo
-   quando uma classe define `display` (bug clássico de especificidade). */
 [hidden] {
   display: none !important;
 }
@@ -41,8 +39,6 @@ body {
 a {
   color: var(--accent);
 }
-
-/* ---------- Hero ---------- */
 
 .hero {
   max-width: 720px;
@@ -73,8 +69,6 @@ a {
   margin: 16px auto 32px;
   font-size: 1.05rem;
 }
-
-/* ---------- Search ---------- */
 
 .search {
   display: flex;
@@ -188,7 +182,6 @@ a {
   text-align: center;
 }
 
-/* ---------- Results ---------- */
 
 main {
   max-width: 960px;
@@ -304,7 +297,6 @@ main {
   margin: 0 0 4px;
 }
 
-/* ---------- Team card ---------- */
 
 .card {
   background: var(--surface);
@@ -446,7 +438,6 @@ main {
   outline-offset: 2px;
 }
 
-/* ---------- Meus favoritos ---------- */
 
 .favoritos {
   margin-top: 64px;
@@ -473,7 +464,6 @@ main {
   gap: 20px;
 }
 
-/* ---------- Toast (avisos rápidos) ---------- */
 
 .toast {
   position: fixed;
@@ -502,7 +492,6 @@ main {
   color: #ffb3b3;
 }
 
-/* ---------- Footer ---------- */
 
 .rodape {
   text-align: center;
@@ -511,7 +500,6 @@ main {
   padding: 24px;
 }
 
-/* ---------- Reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
   .card {
@@ -519,7 +507,6 @@ main {
   }
 }
 
-/* ---------- Mobile ---------- */
 
 @media (max-width: 480px) {
   .search {

@@ -1,18 +1,11 @@
 const BASE_URL = "https://www.thesportsdb.com/api/v1/json/123";
 
-// ---------- Configuração do Supabase (persistência dos favoritos) ----------
-
-// Copie estes dois valores em: Supabase > Project Settings > API.
-// A chave "anon public" (ou "publishable") foi feita para uso no frontend,
-// então pode ficar aqui. NUNCA use a chave "service_role"/"secret" neste arquivo.
 const SUPABASE_URL = "https://lsnjpguiqjulyjfwfikw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zuQhbYTP5ko8udRaXlYoMQ_SyA-L4ev";
 
 const TABELA_FAVORITOS = "favoritos";
 
-// Placeholder embutido (SVG em data URI) usado quando o time não tem
-// escudo cadastrado — evita depender de um serviço externo que pode
-// falhar ou ficar fora do ar.
+
 const ESCUDO_PLACEHOLDER =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
@@ -27,9 +20,6 @@ const ESPORTES = [
   { label: "Futebol Americano", valor: "American Football" },
 ];
 
-// Tradução dos nomes de país mais comuns (português -> inglês), já que
-// a TheSportsDB só reconhece o nome do país em inglês. As chaves são
-// normalizadas (sem acento, minúsculas) para a busca ser mais tolerante.
 const PAISES_PT_PARA_EN = {
   "inglaterra": "England",
   "escocia": "Scotland",
@@ -88,18 +78,10 @@ function normalizarTexto(texto) {
 
 function traduzirPais(paisDigitado) {
   const chave = normalizarTexto(paisDigitado);
-  // Se não tiver no dicionário, tentamos usar o que foi digitado mesmo
-  // (pode ser que a pessoa já tenha digitado em inglês, ou um país que
-  // não está na nossa lista de traduções).
+
   return PAISES_PT_PARA_EN[chave] || paisDigitado;
 }
 
-// A busca dinâmica de ligas da API às vezes corta as ligas mais famosas
-// de um país antes que elas apareçam (ex: o Brasil tem dezenas de
-// campeonatos estaduais que vêm antes da Série A). Para não deixar as
-// ligas mais conhecidas invisíveis, mantemos aqui uma lista "curada"
-// por país/esporte, que é sempre adicionada ao topo do select, mesmo
-// que a API não a traga.
 const LIGAS_FAMOSAS = {
   "Soccer|England": [
     "English Premier League",
@@ -139,24 +121,15 @@ const listaFavoritos = document.getElementById("lista-favoritos");
 const contadorFavoritos = document.getElementById("contador-favoritos");
 const toast = document.getElementById("toast");
 
-// Guarda os últimos times carregados (por nome ou por liga), pra
-// filtrar pelo nome sem precisar fazer uma nova chamada à API.
+
 let ultimosTimesCarregados = [];
 
-// Guarda o nome oficial da liga selecionada no momento, pra conferir
-// se um time buscado individualmente realmente pertence a ela.
 let ligaAtualSelecionada = "";
 
-// Todo time já exibido na tela, por id. Serve para o botão "Favoritar"
-// descobrir quais dados salvar a partir do id que está no botão.
 const timesPorId = new Map();
 
 // ---------- Ajudante central de requisições ----------
 
-// Concentra o padrão repetido em toda chamada à API: pedir, tratar
-// falha de rede, checar se a resposta veio OK, e converter pra JSON.
-// Retorna os dados em caso de sucesso, ou `null` se algo deu errado
-// (nesse caso, quem chamou deve mostrar o estado de erro).
 async function buscarJSON(url) {
   let resposta;
   try {
@@ -186,9 +159,6 @@ async function buscarPorNome(termo) {
     return;
   }
 
-  // A TheSportsDB responde 200 OK mesmo quando não encontra nada,
-  // retornando "teams": null. Por isso tratamos esse caso separado
-  // de um erro real de rede/API.
   if (!dados.teams) {
     mostrarVazio(`Nenhum time encontrado para "${escaparHTML(termo)}". Tente outro nome, como "Barcelona" ou "Lakers".`);
     return;
@@ -221,9 +191,6 @@ async function buscarLigas(esporte, pais) {
   const ligasDaApi = dados.countries || [];
   const nomesFamosos = LIGAS_FAMOSAS[`${esporte}|${pais}`] || [];
 
-  // Junta as ligas famosas (curadas por nós) com as que a API trouxe,
-  // sem duplicar. As famosas vêm primeiro e marcadas com "★", já que
-  // são as que a maioria das pessoas procura.
   const nomesJaNaApi = new Set(ligasDaApi.map((l) => normalizarTexto(l.strLeague)));
 
   const ligasFamosas = nomesFamosos
@@ -304,8 +271,6 @@ async function buscarTimeNaLigaAtual(nomeTime) {
     return;
   }
 
-  // Adiciona esse time à lista carregada (se ainda não estiver nela),
-  // pra continuar aparecendo caso o usuário limpe o filtro depois.
   const jaEstaNaLista = ultimosTimesCarregados.some((t) => t.idTeam === time.idTeam);
   if (!jaEstaNaLista) {
     ultimosTimesCarregados = [...ultimosTimesCarregados, time];
@@ -314,7 +279,6 @@ async function buscarTimeNaLigaAtual(nomeTime) {
   renderizarTimes([time]);
 }
 
-// ---------- Estados da tela ----------
 
 function mostrarCarregando() {
   areaFiltroTimes.hidden = true;
@@ -336,8 +300,6 @@ function mostrarErro() {
   `;
 }
 
-// Guarda a lista carregada e mostra o campo de filtro por nome quando
-// há mais de 1 time — filtrar 1 resultado só não faz sentido.
 function carregarTimes(times) {
   ultimosTimesCarregados = times;
   campoFiltroTimes.value = "";
@@ -345,10 +307,6 @@ function carregarTimes(times) {
 
   renderizarTimes(times);
 
-  // A API gratuita da TheSportsDB limita esse endpoint a no máximo 10
-  // times por liga (é uma restrição documentada do plano free, não um
-  // bug nosso). Quando batemos exatamente nesse número, avisamos que a
-  // lista pode estar incompleta, pra não parecer que o time "sumiu".
   if (times.length === 10) {
     area.insertAdjacentHTML(
       "afterbegin",
@@ -366,8 +324,6 @@ function renderizarTimes(times) {
   atualizarBotoesFavoritar();
 }
 
-// `acoesHTML` é o rodapé do card: nos resultados da busca vai o botão
-// "Favoritar"; na seção de favoritos vai o botão "Excluir".
 function criarCardHTML(time, acoesHTML = "") {
   const escudo = escaparHTML(time.strBadge || ESCUDO_PLACEHOLDER);
   const nome = escaparHTML(time.strTeam || "Time sem nome");
@@ -419,9 +375,6 @@ function escaparHTML(valor) {
 
 // ---------- Favoritos (persistência com Supabase) ----------
 
-// Cria o cliente do Supabase. Se a configuração estiver incompleta ou a
-// biblioteca não tiver carregado, devolve `null` e uma explicação — assim
-// a busca de times continua funcionando e só os favoritos avisam o motivo.
 function criarClienteSupabase() {
   const configurado =
     SUPABASE_URL.startsWith("https://") &&
@@ -465,8 +418,6 @@ function timeParaRegistro(time) {
   };
 }
 
-// Converte uma linha do banco para o mesmo formato que a API devolve,
-// pra reaproveitar o `criarCardHTML` nos favoritos.
 function linhaParaTime(linha) {
   return {
     idTeam: linha.id_time,
@@ -498,8 +449,6 @@ function mostrarToast(mensagem, tipo = "info") {
 }
 
 function mensagemDeErroDoBanco(erro) {
-  // 42501 = violação de política RLS (a tabela não permite essa operação
-  // para a chave anon). É o erro mais comum ao configurar o Supabase.
   if (erro && (erro.code === "42501" || /row-level security/i.test(erro.message || ""))) {
     return "O banco recusou a operação. Confira as políticas (RLS) da tabela favoritos no Supabase.";
   }
@@ -566,8 +515,6 @@ function criarBotaoFavoritarHTML(time) {
   `;
 }
 
-// Sincroniza todos os botões "Favoritar" da tela com a lista de favoritos
-// (marcado = já está salvo no banco).
 function atualizarBotoesFavoritar() {
   document.querySelectorAll(".botao-favoritar").forEach((botao) => {
     const favorito = Boolean(encontrarFavoritoPorIdTime(botao.dataset.idTime));
@@ -587,8 +534,6 @@ async function salvarFavorito(time) {
     .single();
 
   if (error) {
-    // 23505 = violação de unicidade: o time já está salvo (por exemplo,
-    // favoritado em outra aba). Só recarregamos a lista.
     if (error.code === "23505") {
       mostrarToast("Esse time já estava nos favoritos.", "info");
       await carregarFavoritos();
@@ -604,9 +549,6 @@ async function salvarFavorito(time) {
 
 // DELETE — remove o registro do banco.
 async function removerFavorito(id) {
-  // O `.select()` devolve as linhas apagadas. Com RLS mal configurada o
-  // Supabase não dá erro: simplesmente não apaga nada. Conferir o retorno
-  // evita dizer que excluiu quando na verdade não excluiu.
   const { data, error } = await clienteSupabase
     .from(TABELA_FAVORITOS)
     .delete()
