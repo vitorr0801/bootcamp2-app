@@ -4,7 +4,7 @@ const SUPABASE_URL = "https://lsnjpguiqjulyjfwfikw.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_zuQhbYTP5ko8udRaXlYoMQ_SyA-L4ev";
 
 const TABELA_FAVORITOS = "favoritos";
-
+const TAMANHO_MAXIMO_ANOTACAO = 500;
 
 const ESCUDO_PLACEHOLDER =
   "data:image/svg+xml;utf8," +
@@ -78,7 +78,6 @@ function normalizarTexto(texto) {
 
 function traduzirPais(paisDigitado) {
   const chave = normalizarTexto(paisDigitado);
-
   return PAISES_PT_PARA_EN[chave] || paisDigitado;
 }
 
@@ -121,14 +120,11 @@ const listaFavoritos = document.getElementById("lista-favoritos");
 const contadorFavoritos = document.getElementById("contador-favoritos");
 const toast = document.getElementById("toast");
 
-
 let ultimosTimesCarregados = [];
 
 let ligaAtualSelecionada = "";
 
 const timesPorId = new Map();
-
-// ---------- Ajudante central de requisições ----------
 
 async function buscarJSON(url) {
   let resposta;
@@ -147,8 +143,6 @@ async function buscarJSON(url) {
   }
 }
 
-// ---------- Busca direta por nome exato de time ----------
-
 async function buscarPorNome(termo) {
   mostrarCarregando();
 
@@ -166,8 +160,6 @@ async function buscarPorNome(termo) {
 
   carregarTimes(dados.teams);
 }
-
-// ---------- Explorar por esporte + país -> ligas ----------
 
 function popularSelectEsportes() {
   selectEsporte.innerHTML =
@@ -245,8 +237,6 @@ async function buscarPorLiga(ligaNome) {
   carregarTimes(dados.teams);
 }
 
-// ---------- Buscar um time específico dentro da liga selecionada ----------
-
 async function buscarTimeNaLigaAtual(nomeTime) {
   mostrarCarregando();
 
@@ -278,7 +268,6 @@ async function buscarTimeNaLigaAtual(nomeTime) {
 
   renderizarTimes([time]);
 }
-
 
 function mostrarCarregando() {
   areaFiltroTimes.hidden = true;
@@ -364,16 +353,11 @@ function criarCardHTML(time, acoesHTML = "") {
   `;
 }
 
-// Escapa também aspas, porque o texto é usado dentro de atributos HTML
-// (alt, src, data-*). Os dados vêm da API e do banco, então nunca são
-// inseridos na página sem passar por aqui.
 function escaparHTML(valor) {
   const div = document.createElement("div");
   div.textContent = String(valor);
   return div.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
-
-// ---------- Favoritos (persistência com Supabase) ----------
 
 function criarClienteSupabase() {
   const configurado =
@@ -400,7 +384,6 @@ function criarClienteSupabase() {
 
 const { cliente: clienteSupabase, motivo: motivoBancoIndisponivel } = criarClienteSupabase();
 
-// Linhas da tabela `favoritos` que já foram carregadas do banco.
 let favoritos = [];
 
 function timeParaRegistro(time) {
@@ -452,6 +435,9 @@ function mensagemDeErroDoBanco(erro) {
   if (erro && (erro.code === "42501" || /row-level security/i.test(erro.message || ""))) {
     return "O banco recusou a operação. Confira as políticas (RLS) da tabela favoritos no Supabase.";
   }
+  if (erro && (erro.code === "42703" || erro.code === "PGRST204" || /anotacao/i.test(erro.message || ""))) {
+    return "A coluna 'anotacao' não existe no banco. Rode o banco.sql atualizado no SQL Editor do Supabase.";
+  }
   return "Não foi possível falar com o banco de dados. Tente novamente em instantes.";
 }
 
@@ -492,12 +478,27 @@ function renderizarFavoritos() {
   } else {
     listaFavoritos.innerHTML = favoritos
       .map((linha) => {
+        const anotacao = `
+          <div class="anotacao">
+            <label class="anotacao__rotulo" for="anotacao-${escaparHTML(linha.id)}">Minha anotação</label>
+            <textarea
+              id="anotacao-${escaparHTML(linha.id)}"
+              class="anotacao__campo"
+              maxlength="${TAMANHO_MAXIMO_ANOTACAO}"
+              rows="2"
+              placeholder="Ex.: ver o jogo de domingo, camisa que quero comprar..."
+            >${escaparHTML(linha.anotacao || "")}</textarea>
+            <button type="button" class="botao-salvar-anotacao" data-id="${escaparHTML(linha.id)}">
+              Salvar anotação
+            </button>
+          </div>
+        `;
         const botaoExcluir = `
           <button type="button" class="botao-excluir-favorito" data-id="${escaparHTML(linha.id)}">
             Excluir
           </button>
         `;
-        return criarCardHTML(linhaParaTime(linha), botaoExcluir);
+        return criarCardHTML(linhaParaTime(linha), anotacao + botaoExcluir);
       })
       .join("");
   }
@@ -525,7 +526,6 @@ function atualizarBotoesFavoritar() {
   });
 }
 
-// CREATE — salva o time no banco.
 async function salvarFavorito(time) {
   const { data, error } = await clienteSupabase
     .from(TABELA_FAVORITOS)
@@ -547,7 +547,6 @@ async function salvarFavorito(time) {
   mostrarToast(`${time.strTeam} foi para os favoritos.`, "sucesso");
 }
 
-// DELETE — remove o registro do banco.
 async function removerFavorito(id) {
   const { data, error } = await clienteSupabase
     .from(TABELA_FAVORITOS)
@@ -609,7 +608,42 @@ async function excluirFavoritoDaLista(botao) {
   }
 }
 
-// ---------- Eventos ----------
+async function salvarAnotacao(botao) {
+  if (!clienteSupabase) return;
+
+  const id = botao.dataset.id;
+  const campo = botao.closest(".anotacao").querySelector(".anotacao__campo");
+  const texto = campo.value.trim().slice(0, TAMANHO_MAXIMO_ANOTACAO);
+
+  botao.disabled = true;
+  campo.disabled = true;
+
+  try {
+    const { data, error } = await clienteSupabase
+      .from(TABELA_FAVORITOS)
+      .update({ anotacao: texto || null })
+      .eq("id", id)
+      .select();
+
+    if (error) throw error;
+
+    if (!data || data.length === 0) {
+      mostrarToast("O banco recusou salvar a anotação. Confira a policy de UPDATE (RLS) no Supabase.", "erro");
+      return;
+    }
+
+    const linha = favoritos.find((f) => String(f.id) === String(id));
+    if (linha) linha.anotacao = data[0].anotacao;
+    campo.value = data[0].anotacao || "";
+    mostrarToast("Anotação salva!", "sucesso");
+  } catch (erro) {
+    console.error("Erro ao salvar anotação:", erro);
+    mostrarToast(mensagemDeErroDoBanco(erro), "erro");
+  } finally {
+    botao.disabled = false;
+    campo.disabled = false;
+  }
+}
 
 form.addEventListener("submit", (evento) => {
   evento.preventDefault();
@@ -700,6 +734,12 @@ area.addEventListener("click", (evento) => {
 });
 
 listaFavoritos.addEventListener("click", (evento) => {
+  const botaoSalvar = evento.target.closest(".botao-salvar-anotacao");
+  if (botaoSalvar) {
+    salvarAnotacao(botaoSalvar);
+    return;
+  }
+
   const botaoExcluir = evento.target.closest(".botao-excluir-favorito");
   if (botaoExcluir) excluirFavoritoDaLista(botaoExcluir);
 });

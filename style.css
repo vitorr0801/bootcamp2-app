@@ -120,8 +120,6 @@ a {
   outline-offset: 2px;
 }
 
-/* ---------- Chips ---------- */
-
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -145,8 +143,6 @@ a {
   border-color: var(--accent);
   color: var(--text);
 }
-
-/* ---------- Atalho para os favoritos ---------- */
 
 .atalho-favoritos {
   display: inline-flex;
@@ -181,7 +177,6 @@ a {
   font-size: 0.8rem;
   text-align: center;
 }
-
 
 main {
   max-width: 960px;
@@ -297,7 +292,6 @@ main {
   margin: 0 0 4px;
 }
 
-
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -386,6 +380,7 @@ main {
   width: 100%;
   display: flex;
   justify-content: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 16px;
   padding-top: 16px;
@@ -427,17 +422,65 @@ main {
 }
 
 .botao-favoritar:disabled,
-.botao-excluir-favorito:disabled {
+.botao-excluir-favorito:disabled,
+.botao-salvar-anotacao:disabled {
   opacity: 0.5;
   cursor: wait;
 }
 
 .botao-favoritar:focus-visible,
-.botao-excluir-favorito:focus-visible {
+.botao-excluir-favorito:focus-visible,
+.botao-salvar-anotacao:focus-visible,
+.anotacao__campo:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 2px;
 }
 
+.anotacao {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.anotacao__rotulo {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.anotacao__campo {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+}
+
+.botao-salvar-anotacao {
+  align-self: flex-start;
+  padding: 8px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.botao-salvar-anotacao:hover {
+  background: var(--accent-soft);
+}
 
 .favoritos {
   margin-top: 64px;
@@ -463,7 +506,6 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 20px;
 }
-
 
 .toast {
   position: fixed;
@@ -492,7 +534,6 @@ main {
   color: #ffb3b3;
 }
 
-
 .rodape {
   text-align: center;
   color: var(--text-muted);
@@ -500,13 +541,11 @@ main {
   padding: 24px;
 }
 
-
 @media (prefers-reduced-motion: reduce) {
   .card {
     animation: none;
   }
 }
-
 
 @media (max-width: 480px) {
   .search {
